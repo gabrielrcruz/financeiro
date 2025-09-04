@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Controle Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .paid { text-decoration: line-through; opacity: 0.6; }
+        .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        select:disabled, input:disabled {
+            background-color: #f3f4f6;
+            cursor: not-allowed;
+        }
+        #auth-screen {
+            background: linear-gradient(rgba(243, 244, 246, 0.9), rgba(229, 231, 235, 0.9)), url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2511&auto=format&fit=crop');
+            background-size: cover;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-2xl p-8">
+            <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-800 mb-2">Bem-vindo!</h2>
+            <p class="text-center text-gray-500 mb-8">Faça login para continuar</p>
+            
+            <!-- Login Form -->
+            <form id="login-form" class="space-y-6">
+                <input type="email" id="login-email" placeholder="Seu e-mail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300">Entrar</button>
+            </form>
+
+            <!-- Register Form (hidden by default) -->
+            <form id="register-form" class="hidden space-y-6">
+                <input type="email" id="register-email" placeholder="Seu e-mail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                <input type="password" id="register-password" placeholder="Crie uma senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors duration-300">Criar Conta</button>
+            </form>
+
+            <div class="text-center mt-6">
+                <a href="#" id="toggle-auth" class="text-indigo-600 hover:underline">Não tem uma conta? Registre-se</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Banner -->
+    <div id="notification" class="hidden fixed top-0 left-0 right-0 p-4 text-center z-50 text-white transition-transform duration-300">
+        <span id="notification-message"></span>
+    </div>
+
+    <div id="app" class="hidden container mx-auto p-4 md:p-8 max-w-7xl pt-10">
+        <header class="text-center mb-10 relative">
+            <h1 class="text-4xl font-bold text-gray-900">Meu Controle Financeiro</h1>
+            <p class="text-lg text-gray-600 mt-2">Gerencie suas contas a pagar e a receber com facilidade.</p>
+            <button id="logout-btn" class="absolute top-0 right-0 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-300">Sair</button>
+        </header>
+
+        <!-- Seção de Filtros e Gráfico -->
+        <section class="mb-8 bg-white p-6 rounded-xl shadow-lg">
+             <div class="flex flex-col md:flex-row gap-4 mb-6 items-center">
+                <h2 class="text-2xl font-semibold text-gray-700 whitespace-nowrap">Visão Geral</h2>
+                <div class="flex gap-4 ml-auto items-end">
+                    <div>
+                        <label for="year-filter" class="block text-sm font-medium text-gray-700">Ano</label>
+                        <select id="year-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="all">Todos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="month-filter" class="block text-sm font-medium text-gray-700">Mês</label>
+                        <select id="month-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="all">Todos</option>
+                            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option><option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option><option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option><option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+             <div class="mt-4 flex items-center justify-end gap-4 border-t pt-4">
+                <span id="locked-date-display" class="font-medium text-gray-600 text-sm"></span>
+                <button id="lock-date-btn" class="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition-colors text-sm">Fixar Filtros</button>
+            </div>
+            <div class="mt-6">
+                <canvas id="finance-chart"></canvas>
+            </div>
+        </section>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Coluna de Contas a Receber -->
+            <section id="receivables" class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-green-600 border-b-2 border-green-200 pb-2 mb-4">A Receber</h2>
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="font-semibold mb-2">Filtros</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="receivable-filter-company" placeholder="Filtrar por empresa..." class="w-full p-2 border border-gray-300 rounded-md">
+                        <div class="grid grid-cols-2 gap-2">
+                             <input type="date" id="receivable-filter-start-date" class="w-full p-2 border border-gray-300 rounded-md" title="Data de início">
+                             <input type="date" id="receivable-filter-end-date" class="w-full p-2 border border-gray-300 rounded-md" title="Data de fim">
+                        </div>
+                    </div>
+                </div>
+                <form id="form-receivable" class="space-y-4 mb-6">
+                    <input type="text" id="receivable-company" placeholder="Empresa/Cliente" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    <input type="text" id="receivable-paymentId" placeholder="Identificação do Pagamento" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="date" id="receivable-date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                        <input type="number" id="receivable-amount" placeholder="Valor (R$)" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors duration-300">Adicionar Recebimento</button>
+                </form>
+                <div id="list-receivables" class="space-y-3"></div>
+                <div id="pagination-receivables" class="mt-4 flex items-center justify-between"></div>
+                 <div class="mt-6 text-right">
+                    <h3 class="text-xl font-bold">Total a Receber (Filtrado): <span id="total-receivable" class="text-green-600">R$ 0,00</span></h3>
+                </div>
+            </section>
+
+            <!-- Coluna de Contas a Pagar -->
+            <section id="payables" class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-red-600 border-b-2 border-red-200 pb-2 mb-4">A Pagar</h2>
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="font-semibold mb-2">Filtros</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="payable-filter-company" placeholder="Filtrar por empresa..." class="w-full p-2 border border-gray-300 rounded-md">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="date" id="payable-filter-start-date" class="w-full p-2 border border-gray-300 rounded-md" title="Data de início">
+                            <input type="date" id="payable-filter-end-date" class="w-full p-2 border border-gray-300 rounded-md" title="Data de fim">
+                        </div>
+                    </div>
+                </div>
+                <form id="form-payable" class="space-y-4 mb-6">
+                    <input type="text" id="payable-company" placeholder="Empresa/Fornecedor" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="date" id="payable-date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                        <input type="number" id="payable-amount" placeholder="Valor (R$)" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition-colors duration-300">Adicionar Pagamento</button>
+                </form>
+                <div id="list-payables" class="space-y-3"></div>
+                <div id="pagination-payables" class="mt-4 flex items-center justify-between"></div>
+                <div class="mt-6 text-right">
+                    <h3 class="text-xl font-bold">Total a Pagar (Filtrado): <span id="total-payable" class="text-red-600">R$ 0,00</span></h3>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div class="w-full max-w-lg bg-white rounded-xl shadow-2xl p-8">
+            <h2 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6">Editar Lançamento</h2>
+            <form id="edit-form" class="space-y-4">
+                <input type="hidden" id="edit-id">
+                <input type="hidden" id="edit-type">
+                <input type="text" id="edit-company" placeholder="Empresa/Cliente" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <input type="text" id="edit-paymentId" placeholder="Identificação do Pagamento" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="date" id="edit-date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    <input type="number" id="edit-amount" placeholder="Valor (R$)" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="flex justify-end gap-4 pt-4">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition-colors duration-300">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors duration-300">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyBRK-L-hUzj2s-6Wk2qZFFvbD7S-xTreqU",
+          authDomain: "meu-controle-financeiro-59353.firebaseapp.com",
+          projectId: "meu-controle-financeiro-59353",
+          storageBucket: "meu-controle-financeiro-59353.firebasestorage.app",
+          messagingSenderId: "913034950192",
+          appId: "1:913034950192:web:5726544c6d08b7d714dff5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let userId, receivablesCollection, payablesCollection, financeChart = null;
+        let allReceivables = [], allPayables = [];
+        let state = {
+            receivables: { currentPage: 1, itemsPerPage: 10 },
+            payables: { currentPage: 1, itemsPerPage: 10 }
+        };
+
+        const dom = {
+            authScreen: document.getElementById('auth-screen'),
+            appScreen: document.getElementById('app'),
+            loginForm: document.getElementById('login-form'),
+            registerForm: document.getElementById('register-form'),
+            toggleAuthLink: document.getElementById('toggle-auth'),
+            authTitle: document.getElementById('auth-title'),
+            logoutBtn: document.getElementById('logout-btn'),
+            
+            notification: document.getElementById('notification'),
+            notificationMessage: document.getElementById('notification-message'),
+            formReceivable: document.getElementById('form-receivable'),
+            listReceivables: document.getElementById('list-receivables'),
+            totalReceivablesEl: document.getElementById('total-receivable'),
+            paginationReceivables: document.getElementById('pagination-receivables'),
+            formPayable: document.getElementById('form-payable'),
+            listPayables: document.getElementById('list-payables'),
+            totalPayablesEl: document.getElementById('total-payable'),
+            paginationPayables: document.getElementById('pagination-payables'),
+            yearFilter: document.getElementById('year-filter'),
+            monthFilter: document.getElementById('month-filter'),
+            lockDateBtn: document.getElementById('lock-date-btn'),
+            lockedDateDisplay: document.getElementById('locked-date-display'),
+            receivableFilters: {
+                company: document.getElementById('receivable-filter-company'),
+                startDate: document.getElementById('receivable-filter-start-date'),
+                endDate: document.getElementById('receivable-filter-end-date')
+            },
+            payableFilters: {
+                company: document.getElementById('payable-filter-company'),
+                startDate: document.getElementById('payable-filter-start-date'),
+                endDate: document.getElementById('payable-filter-end-date')
+            },
+            editModal: document.getElementById('edit-modal'),
+            editForm: document.getElementById('edit-form'),
+            cancelEditBtn: document.getElementById('cancel-edit-btn'),
+            editModalTitle: document.getElementById('edit-modal-title'),
+            editPaymentIdField: document.getElementById('edit-paymentId')
+        };
+        
+        function showNotification(message, isError = true) {
+            dom.notificationMessage.textContent = message;
+            dom.notification.classList.remove('hidden');
+            dom.notification.classList.toggle('bg-red-600', isError);
+            dom.notification.classList.toggle('bg-green-600', !isError);
+            setTimeout(() => { dom.notification.classList.add('hidden'); }, 5000);
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                dom.authScreen.classList.add('hidden');
+                dom.appScreen.classList.remove('hidden');
+                applyLockedFilters();
+                setupCollections(userId);
+                setupListeners();
+            } else {
+                dom.appScreen.classList.add('hidden');
+                dom.authScreen.classList.remove('hidden');
+                userId = null;
+                allReceivables = [];
+                allPayables = [];
+            }
+        });
+        
+        dom.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = dom.loginForm.querySelector('#login-email').value;
+            const password = dom.loginForm.querySelector('#login-password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error("Erro de login:", error.code, error.message);
+                showNotification("Credenciais inválidas. Verifique seu e-mail e senha.");
+            }
+        });
+
+        dom.registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = dom.registerForm.querySelector('#register-email').value;
+            const password = dom.registerForm.querySelector('#register-password').value;
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error("Erro de registro:", error.code, error.message);
+                switch (error.code) {
+                    case 'auth/weak-password':
+                        showNotification("A senha deve ter pelo menos 6 caracteres.");
+                        break;
+                    case 'auth/email-already-in-use':
+                        showNotification("Este e-mail já está em uso. Tente fazer login.");
+                        break;
+                    case 'auth/invalid-email':
+                        showNotification("O formato do e-mail é inválido.");
+                        break;
+                    case 'auth/operation-not-allowed':
+                        showNotification("Erro: Ative o login por 'E-mail/Senha' no seu painel do Firebase.");
+                        break;
+                    default:
+                        showNotification("Erro ao criar conta. Verifique os dados inseridos.");
+                        break;
+                }
+            }
+        });
+
+        dom.logoutBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        dom.toggleAuthLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isLogin = !dom.loginForm.classList.contains('hidden');
+            dom.loginForm.classList.toggle('hidden', !isLogin);
+            dom.registerForm.classList.toggle('hidden', isLogin);
+            
+            if (isLogin) {
+                dom.authTitle.textContent = "Crie sua Conta";
+                dom.toggleAuthLink.textContent = "Já tem uma conta? Faça login";
+            } else {
+                dom.authTitle.textContent = "Bem-vindo!";
+                dom.toggleAuthLink.textContent = "Não tem uma conta? Registre-se";
+            }
+        });
+
+        function setupCollections(uid) {
+            receivablesCollection = collection(db, `financeiro/${uid}/receivables`);
+            payablesCollection = collection(db, `financeiro/${uid}/payables`);
+        }
+
+        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        const formatDate = (dateString) => new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
+
+        dom.formReceivable.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) return showNotification("Você precisa estar logado para adicionar itens.");
+            try {
+                await addDoc(receivablesCollection, {
+                    company: dom.formReceivable.querySelector('#receivable-company').value,
+                    paymentId: dom.formReceivable.querySelector('#receivable-paymentId').value,
+                    date: dom.formReceivable.querySelector('#receivable-date').value,
+                    amount: parseFloat(dom.formReceivable.querySelector('#receivable-amount').value),
+                    paid: false, createdAt: new Date()
+                });
+                e.target.reset();
+                showNotification("Recebimento adicionado com sucesso!", false);
+            } catch (error) {
+                console.error("Erro ao adicionar recebimento:", error);
+                showNotification("Erro ao salvar os dados. Verifique as regras de segurança do Firestore.");
+            }
+        });
+
+        dom.formPayable.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) return showNotification("Você precisa estar logado para adicionar itens.");
+            try {
+                await addDoc(payablesCollection, {
+                    company: dom.formPayable.querySelector('#payable-company').value,
+                    date: dom.formPayable.querySelector('#payable-date').value,
+                    amount: parseFloat(dom.formPayable.querySelector('#payable-amount').value),
+                    paid: false, createdAt: new Date()
+                });
+                e.target.reset();
+                showNotification("Pagamento adicionado com sucesso!", false);
+            } catch (error) {
+                console.error("Erro ao adicionar pagamento:", error);
+                showNotification("Erro ao salvar os dados. Verifique as regras de segurança do Firestore.");
+            }
+        });
+
+        function updateUI() {
+            populateYearFilter();
+            
+            const lockedMonth = localStorage.getItem('lockedMonth');
+            if (lockedMonth) dom.monthFilter.value = lockedMonth;
+
+            const globalYear = dom.yearFilter.value;
+            const globalMonth = dom.monthFilter.value;
+
+            const applyFilters = (docs, filterInputs) => {
+                const company = filterInputs.company.value.toLowerCase();
+                const startDate = filterInputs.startDate.value;
+                const endDate = filterInputs.endDate.value;
+                
+                return docs.filter(doc => {
+                    const data = doc.data();
+                    if (!data.date) return false;
+                    const itemDate = new Date(data.date + 'T00:00:00');
+                    const globalYearMatch = globalYear === 'all' || itemDate.getFullYear() == globalYear;
+                    const globalMonthMatch = globalMonth === 'all' || itemDate.getMonth() == globalMonth;
+                    const companyMatch = !company || data.company.toLowerCase().includes(company);
+                    const startDateMatch = !startDate || data.date >= startDate;
+                    const endDateMatch = !endDate || data.date <= endDate;
+                    return globalYearMatch && globalMonthMatch && companyMatch && startDateMatch && endDateMatch;
+                });
+            };
+
+            const filteredReceivables = applyFilters(allReceivables, dom.receivableFilters);
+            const filteredPayables = applyFilters(allPayables, dom.payableFilters);
+
+            renderPaginatedList(filteredReceivables, 'receivables');
+            renderPaginatedList(filteredPayables, 'payables');
+            updateChart();
+        }
+
+        function renderPaginatedList(docs, type) {
+            const listElement = dom[`list${type.charAt(0).toUpperCase() + type.slice(1)}`];
+            const totalElement = dom[`total${type.charAt(0).toUpperCase() + type.slice(1)}El`];
+            const paginationElement = dom[`pagination${type.charAt(0).toUpperCase() + type.slice(1)}`];
+            const { currentPage, itemsPerPage } = state[type];
+
+            const totalUnpaid = docs.reduce((sum, doc) => !doc.data().paid ? sum + doc.data().amount : sum, 0);
+            if(totalElement) totalElement.textContent = formatCurrency(totalUnpaid);
+            
+            if(listElement) listElement.innerHTML = '';
+            if (docs.length === 0) {
+                if(listElement) listElement.innerHTML = `<p class="text-center text-gray-500">Nenhum item encontrado.</p>`;
+                if(paginationElement) paginationElement.innerHTML = '';
+                return;
+            }
+
+            const sortedDocs = [...docs].sort((a, b) => new Date(a.data().date) - new Date(b.data().date));
+            const totalPages = Math.ceil(sortedDocs.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const paginatedDocs = sortedDocs.slice(startIndex, startIndex + itemsPerPage);
+
+            paginatedDocs.forEach(docSnap => {
+                const item = createListItem(docSnap.id, docSnap.data(), type);
+                if(listElement) listElement.appendChild(item);
+            });
+
+            if(paginationElement) renderPaginationControls(paginationElement, totalPages, currentPage, type);
+        }
+
+        function createListItem(id, data, type) {
+            const item = document.createElement('div');
+            const isReceivable = type === 'receivables';
+            const colorClass = isReceivable ? 'green' : 'red';
+            item.className = `p-4 border rounded-lg flex items-center justify-between transition-all duration-300 ${data.paid ? 'bg-gray-100' : 'bg-white'}`;
+            item.innerHTML = `
+                <div class="flex items-center space-x-4">
+                    <input type="checkbox" data-id="${id}" data-type="${type}" class="h-6 w-6 rounded border-gray-300 text-${colorClass}-600 focus:ring-${colorClass}-500 cursor-pointer" ${data.paid ? 'checked' : ''}>
+                    <div class="${data.paid ? 'paid' : ''}">
+                        <p class="font-semibold text-lg">${data.company}</p>
+                        <p class="text-sm text-gray-500">${isReceivable && data.paymentId ? `ID: ${data.paymentId} | ` : ''}Vencimento: ${formatDate(data.date)}</p>
+                    </div>
+                </div>
+                <div class="text-right flex items-center space-x-2">
+                     <span class="font-bold text-lg ${data.paid ? `text-gray-500` : `text-${colorClass}-600`}">${formatCurrency(data.amount)}</span>
+                     <button data-id="${id}" data-type="${type}" class="edit-btn text-gray-400 hover:text-indigo-500 transition-colors p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" /></svg>
+                     </button>
+                     <button data-id="${id}" data-type="${type}" class="delete-btn text-gray-400 hover:text-red-500 transition-colors p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                     </button>
+                </div>`;
+            return item;
+        }
+
+        function renderPaginationControls(element, totalPages, currentPage, type) {
+            if (totalPages <= 1) {
+                element.innerHTML = '';
+                return;
+            }
+            element.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <label for="${type}-items-per-page" class="text-sm">Itens por pág:</label>
+                    <select id="${type}-items-per-page" data-type="${type}" class="items-per-page-select border-gray-300 rounded-md text-sm">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="pagination-btn" data-type="${type}" data-action="prev" ${currentPage === 1 ? 'disabled' : ''}>&lt; Anterior</button>
+                    <span class="text-sm font-medium">Página ${currentPage} de ${totalPages}</span>
+                    <button class="pagination-btn" data-type="${type}" data-action="next" ${currentPage === totalPages ? 'disabled' : ''}>Próxima &gt;</button>
+                </div>
+            `;
+            element.querySelector(`#${type}-items-per-page`).value = state[type].itemsPerPage;
+        }
+        
+        function populateYearFilter() {
+            const years = new Set([...allReceivables, ...allPayables].map(doc => {
+                const data = doc.data();
+                return data.date ? new Date(data.date + 'T00:00:00').getFullYear() : null;
+            }).filter(year => year !== null));
+            const currentYear = dom.yearFilter.value;
+            dom.yearFilter.innerHTML = '<option value="all">Todos</option>';
+            Array.from(years).sort((a, b) => b - a).forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                dom.yearFilter.appendChild(option);
+            });
+            
+            const lockedYear = localStorage.getItem('lockedYear');
+            if (lockedYear && Array.from(years).includes(parseInt(lockedYear))) {
+                dom.yearFilter.value = lockedYear;
+            } else if (Array.from(years).includes(parseInt(currentYear))) {
+                 dom.yearFilter.value = currentYear;
+            }
+        }
+        
+        function updateChart() {
+            const ctx = document.getElementById('finance-chart').getContext('2d');
+            const labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const receivedData = Array(12).fill(0), paidData = Array(12).fill(0);
+            const selectedYear = dom.yearFilter.value;
+
+            const processData = (docs, dataArray) => docs.forEach(doc => {
+                const data = doc.data();
+                if(!data.date) return;
+                const date = new Date(data.date + 'T00:00:00');
+                if ((selectedYear === 'all' || date.getFullYear() == selectedYear) && data.paid) {
+                    dataArray[date.getMonth()] += Number(data.amount);
+                }
+            });
+            
+            processData(allReceivables, receivedData);
+            processData(allPayables, paidData);
+
+            if (financeChart) {
+                financeChart.data.datasets[0].data = receivedData;
+                financeChart.data.datasets[1].data = paidData;
+                financeChart.update();
+            } else {
+                financeChart = new Chart(ctx, {
+                    type: 'bar', data: { labels, datasets: [
+                        { label: 'Valores Recebidos', data: receivedData, backgroundColor: 'rgba(75, 192, 192, 0.6)' },
+                        { label: 'Valores Pagos', data: paidData, backgroundColor: 'rgba(255, 99, 132, 0.6)' }
+                    ]},
+                    options: { scales: { y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) }}},
+                        plugins: { tooltip: { callbacks: { label: context => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}` }}}
+                    }
+                });
+            }
+        }
+        
+        function applyLockedFilters() {
+            const lockedYear = localStorage.getItem('lockedYear');
+            const lockedMonth = localStorage.getItem('lockedMonth');
+
+            if (lockedYear) {
+                const monthName = lockedMonth ? dom.monthFilter.options[parseInt(lockedMonth) + 1].text : '';
+                const yearName = lockedYear !== 'all' ? ` de ${lockedYear}` : '';
+                dom.lockedDateDisplay.textContent = `Filtros fixados.`;
+                dom.lockDateBtn.textContent = 'Limpar Filtros';
+                dom.lockDateBtn.classList.replace('bg-indigo-500', 'bg-yellow-500');
+                dom.lockDateBtn.classList.replace('hover:bg-indigo-600', 'hover:bg-yellow-600');
+            } else {
+                dom.lockedDateDisplay.textContent = '';
+                dom.lockDateBtn.textContent = 'Fixar Filtros';
+                dom.lockDateBtn.classList.replace('bg-yellow-500', 'bg-indigo-500');
+                dom.lockDateBtn.classList.replace('hover:bg-yellow-600', 'hover:bg-indigo-600');
+            }
+
+            // Individual section filters
+            dom.receivableFilters.company.value = localStorage.getItem('lockedReceivableCompany') || '';
+            dom.receivableFilters.startDate.value = localStorage.getItem('lockedReceivableStartDate') || '';
+            dom.receivableFilters.endDate.value = localStorage.getItem('lockedReceivableEndDate') || '';
+            
+            dom.payableFilters.company.value = localStorage.getItem('lockedPayableCompany') || '';
+            dom.payableFilters.startDate.value = localStorage.getItem('lockedPayableStartDate') || '';
+            dom.payableFilters.endDate.value = localStorage.getItem('lockedPayableEndDate') || '';
+
+            // Also disable these fields if locked
+            const isLocked = !!lockedYear;
+            dom.yearFilter.disabled = isLocked;
+            dom.monthFilter.disabled = isLocked;
+            Object.values(dom.receivableFilters).forEach(el => el.disabled = isLocked);
+            Object.values(dom.payableFilters).forEach(el => el.disabled = isLocked);
+        }
+
+        function openEditModal(id, data, type) {
+            const isReceivable = type === 'receivables';
+            dom.editModal.classList.remove('hidden');
+            dom.editForm.querySelector('#edit-id').value = id;
+            dom.editForm.querySelector('#edit-type').value = type;
+            dom.editForm.querySelector('#edit-company').value = data.company;
+            dom.editForm.querySelector('#edit-date').value = data.date;
+            dom.editForm.querySelector('#edit-amount').value = data.amount;
+            
+            dom.editPaymentIdField.value = data.paymentId || '';
+            dom.editPaymentIdField.style.display = isReceivable ? 'block' : 'none';
+
+            dom.editModalTitle.textContent = `Editar ${isReceivable ? 'Recebimento' : 'Pagamento'}`;
+        }
+
+        function closeEditModal() {
+            dom.editModal.classList.add('hidden');
+            dom.editForm.reset();
+        }
+
+        function setupListeners() {
+            onSnapshot(receivablesCollection, (snapshot) => { allReceivables = snapshot.docs; updateUI(); }, (error) => console.error("Erro no listener de 'receivables':", error));
+            onSnapshot(payablesCollection, (snapshot) => { allPayables = snapshot.docs; updateUI(); }, (error) => console.error("Erro no listener de 'payables':", error));
+
+            ['change', 'keyup'].forEach(evt => {
+                Object.values(dom.receivableFilters).forEach(el => el.addEventListener(evt, updateUI));
+                Object.values(dom.payableFilters).forEach(el => el.addEventListener(evt, updateUI));
+            });
+            
+            dom.yearFilter.addEventListener('change', updateUI);
+            dom.monthFilter.addEventListener('change', updateUI);
+
+            dom.lockDateBtn.addEventListener('click', () => {
+                const isLocked = localStorage.getItem('lockedYear');
+                const filterKeys = [
+                    'lockedYear', 'lockedMonth',
+                    'lockedReceivableCompany', 'lockedReceivableStartDate', 'lockedReceivableEndDate',
+                    'lockedPayableCompany', 'lockedPayableStartDate', 'lockedPayableEndDate'
+                ];
+
+                if (isLocked) {
+                    filterKeys.forEach(key => localStorage.removeItem(key));
+                    
+                    showNotification("Filtros removidos.", false);
+                    dom.yearFilter.value = 'all';
+                    dom.monthFilter.value = 'all';
+                    
+                    Object.values(dom.receivableFilters).forEach(el => el.value = '');
+                    Object.values(dom.payableFilters).forEach(el => el.value = '');
+                    
+                    applyLockedFilters();
+                    updateUI();
+                } else {
+                    const year = dom.yearFilter.value;
+                    const month = dom.monthFilter.value;
+                    const hasReceivableFilters = dom.receivableFilters.company.value || dom.receivableFilters.startDate.value || dom.receivableFilters.endDate.value;
+                    const hasPayableFilters = dom.payableFilters.company.value || dom.payableFilters.startDate.value || dom.payableFilters.endDate.value;
+
+                    if (year === 'all' && month === 'all' && !hasReceivableFilters && !hasPayableFilters) {
+                        showNotification("Por favor, selecione pelo menos um filtro para fixar.");
+                        return;
+                    }
+                    
+                    localStorage.setItem('lockedYear', year);
+                    localStorage.setItem('lockedMonth', month);
+                    localStorage.setItem('lockedReceivableCompany', dom.receivableFilters.company.value);
+                    localStorage.setItem('lockedReceivableStartDate', dom.receivableFilters.startDate.value);
+                    localStorage.setItem('lockedReceivableEndDate', dom.receivableFilters.endDate.value);
+                    localStorage.setItem('lockedPayableCompany', dom.payableFilters.company.value);
+                    localStorage.setItem('lockedPayableStartDate', dom.payableFilters.startDate.value);
+                    localStorage.setItem('lockedPayableEndDate', dom.payableFilters.endDate.value);
+                    
+                    showNotification(`Filtros fixados com sucesso.`, false);
+                    applyLockedFilters();
+                    updateUI();
+                }
+            });
+            
+            document.getElementById('app').addEventListener('click', async (e) => {
+                const target = e.target;
+                const itemControl = target.closest('[data-id][data-type]');
+                if (itemControl) {
+                    const { id, type } = itemControl.dataset;
+                    const collection = type === 'receivables' ? receivablesCollection : payablesCollection;
+                    const docRef = doc(collection, id);
+                    if (target.matches('input[type="checkbox"]')) {
+                        await updateDoc(docRef, { paid: target.checked });
+                    } else if (target.closest('.delete-btn')) {
+                        await deleteDoc(docRef);
+                    } else if (target.closest('.edit-btn')) {
+                        const sourceArray = type === 'receivables' ? allReceivables : allPayables;
+                        const docToEdit = sourceArray.find(doc => doc.id === id);
+                        if (docToEdit) {
+                            openEditModal(id, docToEdit.data(), type);
+                        }
+                    }
+                }
+                const paginationControl = target.closest('[data-action][data-type]');
+                if (paginationControl) {
+                    const { type, action } = paginationControl.dataset;
+                    if (action === 'prev' && state[type].currentPage > 1) state[type].currentPage--;
+                    else if (action === 'next') {
+                         const totalDocs = type === 'receivables' ? allReceivables.length : allPayables.length;
+                         const totalPages = Math.ceil(totalDocs / state[type].itemsPerPage);
+                         if(state[type].currentPage < totalPages) state[type].currentPage++;
+                    }
+                    updateUI();
+                }
+            });
+            
+            document.getElementById('app').addEventListener('change', (e) => {
+                if(e.target.classList.contains('items-per-page-select')){
+                    const { type } = e.target.dataset;
+                    state[type].itemsPerPage = parseInt(e.target.value);
+                    state[type].currentPage = 1;
+                    updateUI();
+                }
+            });
+
+            dom.cancelEditBtn.addEventListener('click', closeEditModal);
+
+            dom.editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = dom.editForm.querySelector('#edit-id').value;
+                const type = dom.editForm.querySelector('#edit-type').value;
+                
+                if (!id || !type) return;
+
+                const collectionRef = type === 'receivables' ? receivablesCollection : payablesCollection;
+                const docRef = doc(collectionRef, id);
+
+                const updatedData = {
+                    company: dom.editForm.querySelector('#edit-company').value,
+                    date: dom.editForm.querySelector('#edit-date').value,
+                    amount: parseFloat(dom.editForm.querySelector('#edit-amount').value),
+                };
+
+                if (type === 'receivables') {
+                    updatedData.paymentId = dom.editForm.querySelector('#edit-paymentId').value;
+                }
+
+                try {
+                    await updateDoc(docRef, updatedData);
+                    showNotification('Lançamento atualizado com sucesso!', false);
+                    closeEditModal();
+                } catch (error) {
+                    console.error("Erro ao atualizar o documento:", error);
+                    showNotification("Erro ao salvar as alterações.");
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>
+
+
