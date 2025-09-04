@@ -6,6 +6,8 @@
     <title>Sistema de Controle Financeiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Biblioteca para ler arquivos CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -19,6 +21,9 @@
             background: linear-gradient(rgba(243, 244, 246, 0.9), rgba(229, 231, 235, 0.9)), url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2511&auto=format&fit=crop');
             background-size: cover;
         }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -28,21 +33,16 @@
         <div class="w-full max-w-md bg-white rounded-xl shadow-2xl p-8">
             <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-800 mb-2">Bem-vindo!</h2>
             <p class="text-center text-gray-500 mb-8">Faça login para continuar</p>
-            
-            <!-- Login Form -->
             <form id="login-form" class="space-y-6">
                 <input type="email" id="login-email" placeholder="Seu e-mail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                 <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
                 <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300">Entrar</button>
             </form>
-
-            <!-- Register Form (hidden by default) -->
             <form id="register-form" class="hidden space-y-6">
                 <input type="email" id="register-email" placeholder="Seu e-mail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
                 <input type="password" id="register-password" placeholder="Crie uma senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
                 <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors duration-300">Criar Conta</button>
             </form>
-
             <div class="text-center mt-6">
                 <a href="#" id="toggle-auth" class="text-indigo-600 hover:underline">Não tem uma conta? Registre-se</a>
             </div>
@@ -54,11 +54,72 @@
         <span id="notification-message"></span>
     </div>
 
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg relative">
+            <button id="close-edit-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 id="edit-modal-title" class="text-2xl font-bold mb-6">Editar Lançamento</h3>
+            <form id="edit-modal-form" class="space-y-4">
+                <input type="hidden" id="edit-item-id">
+                <input type="hidden" id="edit-item-type">
+                <input type="text" id="edit-company" placeholder="Empresa/Cliente" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <div id="edit-receivable-fields">
+                    <input type="text" id="edit-paymentId" placeholder="Identificação do Pagamento" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="date" id="edit-date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                    <input type="number" id="edit-amount" placeholder="Valor (R$)" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="flex justify-end gap-4 pt-4">
+                    <button type="button" id="cancel-edit-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CSV Import Modal -->
+    <div id="csv-import-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 modal-backdrop">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg relative">
+            <button id="close-csv-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h3 class="text-2xl font-bold mb-4">Importar Lançamentos via CSV</h3>
+            <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 mb-6 rounded-md">
+                <p class="font-bold">Formato do Arquivo</p>
+                <p class="text-sm">O arquivo CSV deve conter as seguintes colunas, nesta ordem e sem cabeçalho:</p>
+                <p class="text-sm mt-2 font-mono bg-gray-200 p-2 rounded">Empresa,Data (AAAA-MM-DD),Valor,Identificação (opcional)</p>
+            </div>
+            <form id="csv-import-form">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Importar para qual seção?</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center"><input type="radio" name="import-type" value="receivables" class="mr-2" checked> A Receber</label>
+                        <label class="flex items-center"><input type="radio" name="import-type" value="payables" class="mr-2"> A Pagar</label>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label for="csv-file-input" class="block text-sm font-medium text-gray-700 mb-2">Selecione o arquivo CSV</label>
+                    <input type="file" id="csv-file-input" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" required>
+                </div>
+                <div class="flex justify-end gap-4">
+                    <button type="button" id="cancel-csv-import-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Importar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="app" class="hidden container mx-auto p-4 md:p-8 max-w-7xl pt-10">
         <header class="text-center mb-10 relative">
             <h1 class="text-4xl font-bold text-gray-900">Meu Controle Financeiro</h1>
             <p class="text-lg text-gray-600 mt-2">Gerencie suas contas a pagar e a receber com facilidade.</p>
-            <button id="logout-btn" class="absolute top-0 right-0 bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-300">Sair</button>
+            <div class="absolute top-0 right-0 flex gap-2">
+                <button id="open-csv-import-btn" class="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition-colors duration-300">Importar CSV</button>
+                <button id="logout-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-300">Sair</button>
+            </div>
         </header>
 
         <!-- Seção de Filtros e Gráfico -->
@@ -149,28 +210,6 @@
             </section>
         </main>
     </div>
-    
-    <!-- Edit Modal -->
-    <div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-        <div class="w-full max-w-lg bg-white rounded-xl shadow-2xl p-8">
-            <h2 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6">Editar Lançamento</h2>
-            <form id="edit-form" class="space-y-4">
-                <input type="hidden" id="edit-id">
-                <input type="hidden" id="edit-type">
-                <input type="text" id="edit-company" placeholder="Empresa/Cliente" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
-                <input type="text" id="edit-paymentId" placeholder="Identificação do Pagamento" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="date" id="edit-date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
-                    <input type="number" id="edit-amount" placeholder="Valor (R$)" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
-                </div>
-                <div class="flex justify-end gap-4 pt-4">
-                    <button type="button" id="cancel-edit-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition-colors duration-300">Cancelar</button>
-                    <button type="submit" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors duration-300">Salvar Alterações</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -205,7 +244,6 @@
             toggleAuthLink: document.getElementById('toggle-auth'),
             authTitle: document.getElementById('auth-title'),
             logoutBtn: document.getElementById('logout-btn'),
-            
             notification: document.getElementById('notification'),
             notificationMessage: document.getElementById('notification-message'),
             formReceivable: document.getElementById('form-receivable'),
@@ -231,10 +269,19 @@
                 endDate: document.getElementById('payable-filter-end-date')
             },
             editModal: document.getElementById('edit-modal'),
-            editForm: document.getElementById('edit-form'),
-            cancelEditBtn: document.getElementById('cancel-edit-btn'),
+            editModalForm: document.getElementById('edit-modal-form'),
             editModalTitle: document.getElementById('edit-modal-title'),
-            editPaymentIdField: document.getElementById('edit-paymentId')
+            closeEditModalBtn: document.getElementById('close-edit-modal-btn'),
+            cancelEditBtn: document.getElementById('cancel-edit-btn'),
+            editItemId: document.getElementById('edit-item-id'),
+            editItemType: document.getElementById('edit-item-type'),
+            editReceivableFields: document.getElementById('edit-receivable-fields'),
+            openCsvImportBtn: document.getElementById('open-csv-import-btn'),
+            csvImportModal: document.getElementById('csv-import-modal'),
+            closeCsvModalBtn: document.getElementById('close-csv-modal-btn'),
+            cancelCsvImportBtn: document.getElementById('cancel-csv-import-btn'),
+            csvImportForm: document.getElementById('csv-import-form'),
+            csvFileInput: document.getElementById('csv-file-input'),
         };
         
         function showNotification(message, isError = true) {
@@ -269,7 +316,6 @@
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                console.error("Erro de login:", error.code, error.message);
                 showNotification("Credenciais inválidas. Verifique seu e-mail e senha.");
             }
         });
@@ -281,19 +327,12 @@
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                console.error("Erro de registro:", error.code, error.message);
                 switch (error.code) {
                     case 'auth/weak-password':
                         showNotification("A senha deve ter pelo menos 6 caracteres.");
                         break;
                     case 'auth/email-already-in-use':
                         showNotification("Este e-mail já está em uso. Tente fazer login.");
-                        break;
-                    case 'auth/invalid-email':
-                        showNotification("O formato do e-mail é inválido.");
-                        break;
-                    case 'auth/operation-not-allowed':
-                        showNotification("Erro: Ative o login por 'E-mail/Senha' no seu painel do Firebase.");
                         break;
                     default:
                         showNotification("Erro ao criar conta. Verifique os dados inseridos.");
@@ -302,23 +341,15 @@
             }
         });
 
-        dom.logoutBtn.addEventListener('click', async () => {
-            await signOut(auth);
-        });
+        dom.logoutBtn.addEventListener('click', async () => { await signOut(auth); });
 
         dom.toggleAuthLink.addEventListener('click', (e) => {
             e.preventDefault();
             const isLogin = !dom.loginForm.classList.contains('hidden');
             dom.loginForm.classList.toggle('hidden', !isLogin);
             dom.registerForm.classList.toggle('hidden', isLogin);
-            
-            if (isLogin) {
-                dom.authTitle.textContent = "Crie sua Conta";
-                dom.toggleAuthLink.textContent = "Já tem uma conta? Faça login";
-            } else {
-                dom.authTitle.textContent = "Bem-vindo!";
-                dom.toggleAuthLink.textContent = "Não tem uma conta? Registre-se";
-            }
+            dom.authTitle.textContent = isLogin ? "Crie sua Conta" : "Bem-vindo!";
+            dom.toggleAuthLink.textContent = isLogin ? "Já tem uma conta? Faça login" : "Não tem uma conta? Registre-se";
         });
 
         function setupCollections(uid) {
@@ -343,7 +374,6 @@
                 e.target.reset();
                 showNotification("Recebimento adicionado com sucesso!", false);
             } catch (error) {
-                console.error("Erro ao adicionar recebimento:", error);
                 showNotification("Erro ao salvar os dados. Verifique as regras de segurança do Firestore.");
             }
         });
@@ -361,17 +391,12 @@
                 e.target.reset();
                 showNotification("Pagamento adicionado com sucesso!", false);
             } catch (error) {
-                console.error("Erro ao adicionar pagamento:", error);
                 showNotification("Erro ao salvar os dados. Verifique as regras de segurança do Firestore.");
             }
         });
 
         function updateUI() {
             populateYearFilter();
-            
-            const lockedMonth = localStorage.getItem('lockedMonth');
-            if (lockedMonth) dom.monthFilter.value = lockedMonth;
-
             const globalYear = dom.yearFilter.value;
             const globalMonth = dom.monthFilter.value;
 
@@ -384,12 +409,11 @@
                     const data = doc.data();
                     if (!data.date) return false;
                     const itemDate = new Date(data.date + 'T00:00:00');
-                    const globalYearMatch = globalYear === 'all' || itemDate.getFullYear() == globalYear;
-                    const globalMonthMatch = globalMonth === 'all' || itemDate.getMonth() == globalMonth;
-                    const companyMatch = !company || data.company.toLowerCase().includes(company);
-                    const startDateMatch = !startDate || data.date >= startDate;
-                    const endDateMatch = !endDate || data.date <= endDate;
-                    return globalYearMatch && globalMonthMatch && companyMatch && startDateMatch && endDateMatch;
+                    return (globalYear === 'all' || itemDate.getFullYear() == globalYear) &&
+                           (globalMonth === 'all' || itemDate.getMonth() == globalMonth) &&
+                           (!company || data.company.toLowerCase().includes(company)) &&
+                           (!startDate || data.date >= startDate) &&
+                           (!endDate || data.date <= endDate);
                 });
             };
 
@@ -443,61 +467,45 @@
                         <p class="text-sm text-gray-500">${isReceivable && data.paymentId ? `ID: ${data.paymentId} | ` : ''}Vencimento: ${formatDate(data.date)}</p>
                     </div>
                 </div>
-                <div class="text-right flex items-center space-x-2">
+                <div class="text-right flex items-center space-x-4">
                      <span class="font-bold text-lg ${data.paid ? `text-gray-500` : `text-${colorClass}-600`}">${formatCurrency(data.amount)}</span>
-                     <button data-id="${id}" data-type="${type}" class="edit-btn text-gray-400 hover:text-indigo-500 transition-colors p-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z" /></svg>
+                     <button data-id="${id}" data-type="${type}" class="edit-btn text-gray-400 hover:text-indigo-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
                      </button>
-                     <button data-id="${id}" data-type="${type}" class="delete-btn text-gray-400 hover:text-red-500 transition-colors p-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                     <button data-id="${id}" data-type="${type}" class="delete-btn text-gray-400 hover:text-red-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                      </button>
                 </div>`;
             return item;
         }
 
         function renderPaginationControls(element, totalPages, currentPage, type) {
-            if (totalPages <= 1) {
-                element.innerHTML = '';
-                return;
-            }
+            if (totalPages <= 1) { element.innerHTML = ''; return; }
             element.innerHTML = `
                 <div class="flex items-center gap-2">
                     <label for="${type}-items-per-page" class="text-sm">Itens por pág:</label>
                     <select id="${type}-items-per-page" data-type="${type}" class="items-per-page-select border-gray-300 rounded-md text-sm">
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="30">30</option>
+                        <option value="10">10</option><option value="20">20</option><option value="30">30</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
                     <button class="pagination-btn" data-type="${type}" data-action="prev" ${currentPage === 1 ? 'disabled' : ''}>&lt; Anterior</button>
                     <span class="text-sm font-medium">Página ${currentPage} de ${totalPages}</span>
                     <button class="pagination-btn" data-type="${type}" data-action="next" ${currentPage === totalPages ? 'disabled' : ''}>Próxima &gt;</button>
-                </div>
-            `;
+                </div>`;
             element.querySelector(`#${type}-items-per-page`).value = state[type].itemsPerPage;
         }
         
         function populateYearFilter() {
-            const years = new Set([...allReceivables, ...allPayables].map(doc => {
-                const data = doc.data();
-                return data.date ? new Date(data.date + 'T00:00:00').getFullYear() : null;
-            }).filter(year => year !== null));
+            const years = new Set([...allReceivables, ...allPayables].map(doc => doc.data().date ? new Date(doc.data().date + 'T00:00:00').getFullYear() : null).filter(Boolean));
             const currentYear = dom.yearFilter.value;
             dom.yearFilter.innerHTML = '<option value="all">Todos</option>';
-            Array.from(years).sort((a, b) => b - a).forEach(year => {
+            [...years].sort((a, b) => b - a).forEach(year => {
                 const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
+                option.value = year; option.textContent = year;
                 dom.yearFilter.appendChild(option);
             });
-            
-            const lockedYear = localStorage.getItem('lockedYear');
-            if (lockedYear && Array.from(years).includes(parseInt(lockedYear))) {
-                dom.yearFilter.value = lockedYear;
-            } else if (Array.from(years).includes(parseInt(currentYear))) {
-                 dom.yearFilter.value = currentYear;
-            }
+            dom.yearFilter.value = [...years].includes(parseInt(currentYear)) ? currentYear : (localStorage.getItem('lockedYear') || 'all');
         }
         
         function updateChart() {
@@ -523,8 +531,7 @@
                 financeChart.data.datasets[1].data = paidData;
                 financeChart.update();
             } else {
-                financeChart = new Chart(ctx, {
-                    type: 'bar', data: { labels, datasets: [
+                financeChart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [
                         { label: 'Valores Recebidos', data: receivedData, backgroundColor: 'rgba(75, 192, 192, 0.6)' },
                         { label: 'Valores Pagos', data: paidData, backgroundColor: 'rgba(255, 99, 132, 0.6)' }
                     ]},
@@ -536,59 +543,51 @@
         }
         
         function applyLockedFilters() {
-            const lockedYear = localStorage.getItem('lockedYear');
-            const lockedMonth = localStorage.getItem('lockedMonth');
-
-            if (lockedYear) {
-                const monthName = lockedMonth ? dom.monthFilter.options[parseInt(lockedMonth) + 1].text : '';
-                const yearName = lockedYear !== 'all' ? ` de ${lockedYear}` : '';
-                dom.lockedDateDisplay.textContent = `Filtros fixados.`;
-                dom.lockDateBtn.textContent = 'Limpar Filtros';
-                dom.lockDateBtn.classList.replace('bg-indigo-500', 'bg-yellow-500');
-                dom.lockDateBtn.classList.replace('hover:bg-indigo-600', 'hover:bg-yellow-600');
-            } else {
-                dom.lockedDateDisplay.textContent = '';
-                dom.lockDateBtn.textContent = 'Fixar Filtros';
-                dom.lockDateBtn.classList.replace('bg-yellow-500', 'bg-indigo-500');
-                dom.lockDateBtn.classList.replace('hover:bg-yellow-600', 'hover:bg-indigo-600');
-            }
-
-            // Individual section filters
+            const isLocked = !!localStorage.getItem('lockedYear');
+            dom.yearFilter.value = localStorage.getItem('lockedYear') || 'all';
+            dom.monthFilter.value = localStorage.getItem('lockedMonth') || 'all';
             dom.receivableFilters.company.value = localStorage.getItem('lockedReceivableCompany') || '';
             dom.receivableFilters.startDate.value = localStorage.getItem('lockedReceivableStartDate') || '';
             dom.receivableFilters.endDate.value = localStorage.getItem('lockedReceivableEndDate') || '';
-            
             dom.payableFilters.company.value = localStorage.getItem('lockedPayableCompany') || '';
             dom.payableFilters.startDate.value = localStorage.getItem('lockedPayableStartDate') || '';
             dom.payableFilters.endDate.value = localStorage.getItem('lockedPayableEndDate') || '';
-
-            // Also disable these fields if locked
-            const isLocked = !!lockedYear;
-            dom.yearFilter.disabled = isLocked;
-            dom.monthFilter.disabled = isLocked;
-            Object.values(dom.receivableFilters).forEach(el => el.disabled = isLocked);
-            Object.values(dom.payableFilters).forEach(el => el.disabled = isLocked);
-        }
-
-        function openEditModal(id, data, type) {
-            const isReceivable = type === 'receivables';
-            dom.editModal.classList.remove('hidden');
-            dom.editForm.querySelector('#edit-id').value = id;
-            dom.editForm.querySelector('#edit-type').value = type;
-            dom.editForm.querySelector('#edit-company').value = data.company;
-            dom.editForm.querySelector('#edit-date').value = data.date;
-            dom.editForm.querySelector('#edit-amount').value = data.amount;
             
-            dom.editPaymentIdField.value = data.paymentId || '';
-            dom.editPaymentIdField.style.display = isReceivable ? 'block' : 'none';
+            dom.lockDateBtn.textContent = isLocked ? 'Limpar Filtros' : 'Fixar Filtros';
+            dom.lockDateBtn.classList.toggle('bg-yellow-500', isLocked);
+            dom.lockDateBtn.classList.toggle('hover:bg-yellow-600', isLocked);
+            dom.lockDateBtn.classList.toggle('bg-indigo-500', !isLocked);
+            dom.lockDateBtn.classList.toggle('hover:bg-indigo-600', !isLocked);
 
-            dom.editModalTitle.textContent = `Editar ${isReceivable ? 'Recebimento' : 'Pagamento'}`;
+            [dom.yearFilter, dom.monthFilter, ...Object.values(dom.receivableFilters), ...Object.values(dom.payableFilters)].forEach(el => el.disabled = isLocked);
         }
 
-        function closeEditModal() {
+        const openEditModal = (id, type) => {
+            const allItems = [...allReceivables, ...allPayables];
+            const docSnap = allItems.find(doc => doc.id === id);
+            if (!docSnap) return;
+
+            const data = docSnap.data();
+            dom.editModalTitle.textContent = `Editar ${type === 'receivables' ? 'Recebimento' : 'Pagamento'}`;
+            dom.editItemId.value = id;
+            dom.editItemType.value = type;
+            dom.editModalForm.querySelector('#edit-company').value = data.company;
+            dom.editModalForm.querySelector('#edit-date').value = data.date;
+            dom.editModalForm.querySelector('#edit-amount').value = data.amount;
+
+            if (type === 'receivables') {
+                dom.editReceivableFields.style.display = 'block';
+                dom.editModalForm.querySelector('#edit-paymentId').value = data.paymentId || '';
+            } else {
+                dom.editReceivableFields.style.display = 'none';
+            }
+            dom.editModal.classList.remove('hidden');
+        };
+
+        const closeEditModal = () => {
             dom.editModal.classList.add('hidden');
-            dom.editForm.reset();
-        }
+            dom.editModalForm.reset();
+        };
 
         function setupListeners() {
             onSnapshot(receivablesCollection, (snapshot) => { allReceivables = snapshot.docs; updateUI(); }, (error) => console.error("Erro no listener de 'receivables':", error));
@@ -601,51 +600,56 @@
             
             dom.yearFilter.addEventListener('change', updateUI);
             dom.monthFilter.addEventListener('change', updateUI);
+            dom.closeEditModalBtn.addEventListener('click', closeEditModal);
+            dom.cancelEditBtn.addEventListener('click', closeEditModal);
+
+            dom.editModalForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = dom.editItemId.value;
+                const type = dom.editItemType.value;
+                const collection = type === 'receivables' ? receivablesCollection : payablesCollection;
+                const docRef = doc(collection, id);
+
+                const updatedData = {
+                    company: dom.editModalForm.querySelector('#edit-company').value,
+                    date: dom.editModalForm.querySelector('#edit-date').value,
+                    amount: parseFloat(dom.editModalForm.querySelector('#edit-amount').value),
+                };
+
+                if (type === 'receivables') {
+                    updatedData.paymentId = dom.editModalForm.querySelector('#edit-paymentId').value;
+                }
+                
+                try {
+                    await updateDoc(docRef, updatedData);
+                    showNotification("Item atualizado com sucesso!", false);
+                    closeEditModal();
+                } catch (error) {
+                    showNotification("Erro ao atualizar o item.");
+                }
+            });
 
             dom.lockDateBtn.addEventListener('click', () => {
                 const isLocked = localStorage.getItem('lockedYear');
-                const filterKeys = [
-                    'lockedYear', 'lockedMonth',
-                    'lockedReceivableCompany', 'lockedReceivableStartDate', 'lockedReceivableEndDate',
-                    'lockedPayableCompany', 'lockedPayableStartDate', 'lockedPayableEndDate'
-                ];
+                const filterKeys = ['lockedYear', 'lockedMonth', 'lockedReceivableCompany', 'lockedReceivableStartDate', 'lockedReceivableEndDate', 'lockedPayableCompany', 'lockedPayableStartDate', 'lockedPayableEndDate'];
 
                 if (isLocked) {
                     filterKeys.forEach(key => localStorage.removeItem(key));
-                    
                     showNotification("Filtros removidos.", false);
-                    dom.yearFilter.value = 'all';
-                    dom.monthFilter.value = 'all';
-                    
-                    Object.values(dom.receivableFilters).forEach(el => el.value = '');
-                    Object.values(dom.payableFilters).forEach(el => el.value = '');
-                    
-                    applyLockedFilters();
-                    updateUI();
+                    [dom.yearFilter, dom.monthFilter, ...Object.values(dom.receivableFilters), ...Object.values(dom.payableFilters)].forEach(el => el.value = el.tagName === 'SELECT' ? 'all' : '');
                 } else {
-                    const year = dom.yearFilter.value;
-                    const month = dom.monthFilter.value;
-                    const hasReceivableFilters = dom.receivableFilters.company.value || dom.receivableFilters.startDate.value || dom.receivableFilters.endDate.value;
-                    const hasPayableFilters = dom.payableFilters.company.value || dom.payableFilters.startDate.value || dom.payableFilters.endDate.value;
-
-                    if (year === 'all' && month === 'all' && !hasReceivableFilters && !hasPayableFilters) {
-                        showNotification("Por favor, selecione pelo menos um filtro para fixar.");
-                        return;
-                    }
-                    
-                    localStorage.setItem('lockedYear', year);
-                    localStorage.setItem('lockedMonth', month);
+                    localStorage.setItem('lockedYear', dom.yearFilter.value);
+                    localStorage.setItem('lockedMonth', dom.monthFilter.value);
                     localStorage.setItem('lockedReceivableCompany', dom.receivableFilters.company.value);
                     localStorage.setItem('lockedReceivableStartDate', dom.receivableFilters.startDate.value);
                     localStorage.setItem('lockedReceivableEndDate', dom.receivableFilters.endDate.value);
                     localStorage.setItem('lockedPayableCompany', dom.payableFilters.company.value);
                     localStorage.setItem('lockedPayableStartDate', dom.payableFilters.startDate.value);
                     localStorage.setItem('lockedPayableEndDate', dom.payableFilters.endDate.value);
-                    
                     showNotification(`Filtros fixados com sucesso.`, false);
-                    applyLockedFilters();
-                    updateUI();
                 }
+                applyLockedFilters();
+                updateUI();
             });
             
             document.getElementById('app').addEventListener('click', async (e) => {
@@ -653,29 +657,25 @@
                 const itemControl = target.closest('[data-id][data-type]');
                 if (itemControl) {
                     const { id, type } = itemControl.dataset;
-                    const collection = type === 'receivables' ? receivablesCollection : payablesCollection;
-                    const docRef = doc(collection, id);
+                    if (target.closest('.edit-btn')) {
+                        openEditModal(id, type);
+                        return;
+                    }
+                    if (target.closest('.delete-btn')) {
+                        await deleteDoc(doc(type === 'receivables' ? receivablesCollection : payablesCollection, id));
+                        return;
+                    }
                     if (target.matches('input[type="checkbox"]')) {
-                        await updateDoc(docRef, { paid: target.checked });
-                    } else if (target.closest('.delete-btn')) {
-                        await deleteDoc(docRef);
-                    } else if (target.closest('.edit-btn')) {
-                        const sourceArray = type === 'receivables' ? allReceivables : allPayables;
-                        const docToEdit = sourceArray.find(doc => doc.id === id);
-                        if (docToEdit) {
-                            openEditModal(id, docToEdit.data(), type);
-                        }
+                        await updateDoc(doc(type === 'receivables' ? receivablesCollection : payablesCollection, id), { paid: target.checked });
                     }
                 }
                 const paginationControl = target.closest('[data-action][data-type]');
                 if (paginationControl) {
                     const { type, action } = paginationControl.dataset;
+                    const totalDocs = type === 'receivables' ? allReceivables.length : allPayables.length;
+                    const totalPages = Math.ceil(totalDocs / state[type].itemsPerPage);
                     if (action === 'prev' && state[type].currentPage > 1) state[type].currentPage--;
-                    else if (action === 'next') {
-                         const totalDocs = type === 'receivables' ? allReceivables.length : allPayables.length;
-                         const totalPages = Math.ceil(totalDocs / state[type].itemsPerPage);
-                         if(state[type].currentPage < totalPages) state[type].currentPage++;
-                    }
+                    else if (action === 'next' && state[type].currentPage < totalPages) state[type].currentPage++;
                     updateUI();
                 }
             });
@@ -688,42 +688,72 @@
                     updateUI();
                 }
             });
+        }
+        
+        // --- NOVO CÓDIGO PARA IMPORTAÇÃO DE CSV ---
+        dom.openCsvImportBtn.addEventListener('click', () => {
+            dom.csvImportModal.classList.remove('hidden');
+        });
 
-            dom.cancelEditBtn.addEventListener('click', closeEditModal);
+        const closeCsvModal = () => {
+            dom.csvImportModal.classList.add('hidden');
+            dom.csvImportForm.reset();
+        }
+        dom.closeCsvModalBtn.addEventListener('click', closeCsvModal);
+        dom.cancelCsvImportBtn.addEventListener('click', closeCsvModal);
 
-            dom.editForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const id = dom.editForm.querySelector('#edit-id').value;
-                const type = dom.editForm.querySelector('#edit-type').value;
-                
-                if (!id || !type) return;
+        dom.csvImportForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const file = dom.csvFileInput.files[0];
+            if (!file) { showNotification("Por favor, selecione um arquivo."); return; }
 
-                const collectionRef = type === 'receivables' ? receivablesCollection : payablesCollection;
-                const docRef = doc(collectionRef, id);
+            const importType = dom.csvImportForm.querySelector('input[name="import-type"]:checked').value;
+            const targetCollection = importType === 'receivables' ? receivablesCollection : payablesCollection;
+            
+            showNotification("Importando dados... Por favor, aguarde.", false);
 
-                const updatedData = {
-                    company: dom.editForm.querySelector('#edit-company').value,
-                    date: dom.editForm.querySelector('#edit-date').value,
-                    amount: parseFloat(dom.editForm.querySelector('#edit-amount').value),
-                };
+            Papa.parse(file, {
+                complete: async (results) => {
+                    const rows = results.data;
+                    const promises = [];
+                    let validRows = 0;
 
-                if (type === 'receivables') {
-                    updatedData.paymentId = dom.editForm.querySelector('#edit-paymentId').value;
-                }
+                    for (const row of rows) {
+                        if (row.length < 3 || !row[0] || !row[1] || !row[2]) continue;
 
-                try {
-                    await updateDoc(docRef, updatedData);
-                    showNotification('Lançamento atualizado com sucesso!', false);
-                    closeEditModal();
-                } catch (error) {
-                    console.error("Erro ao atualizar o documento:", error);
-                    showNotification("Erro ao salvar as alterações.");
+                        try {
+                            const company = row[0].trim();
+                            const date = row[1].trim();
+                            const amount = parseFloat(row[2].replace(',', '.').trim());
+                            const paymentId = row[3] ? row[3].trim() : '';
+
+                            if (!company || !date.match(/^\d{4}-\d{2}-\d{2}$/) || isNaN(amount)) {
+                                console.warn("Linha inválida pulada:", row); continue;
+                            }
+                            
+                            const newDoc = { company, date, amount, paid: false, createdAt: new Date() };
+                            if (importType === 'receivables') { newDoc.paymentId = paymentId; }
+                            
+                            promises.push(addDoc(targetCollection, newDoc));
+                            validRows++;
+                        } catch (err) { console.error("Erro processando a linha:", row, err); }
+                    }
+
+                    if (promises.length > 0) {
+                        await Promise.all(promises);
+                        showNotification(`${validRows} itens importados com sucesso!`, false);
+                    } else { showNotification("Nenhum item válido encontrado para importar."); }
+                    closeCsvModal();
+                },
+                error: (error) => {
+                    showNotification("Erro ao ler o arquivo CSV.");
+                    console.error("Erro do PapaParse:", error);
+                    closeCsvModal();
                 }
             });
-        }
+        });
     </script>
 
 </body>
 </html>
-
 
