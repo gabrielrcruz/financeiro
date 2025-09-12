@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva de Dinheiro - Controle Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #auth-screen {
+            background: linear-gradient(rgba(243, 244, 246, 0.9), rgba(229, 231, 235, 0.9)), url('https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2511&auto=format&fit=crop');
+            background-size: cover;
+        }
+        .progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Tela de Autenticação (igual à original) -->
+    <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-xl shadow-2xl p-8">
+            <h2 id="auth-title" class="text-3xl font-bold text-center text-gray-800 mb-2">Bem-vindo!</h2>
+            <p class="text-center text-gray-500 mb-8">Faça login para ver sua reserva</p>
+            <form id="login-form" class="space-y-6">
+                <input type="email" id="login-email" placeholder="Seu e-mail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <input type="password" id="login-password" placeholder="Sua senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" required>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300">Entrar</button>
+            </form>
+            <form id="register-form" class="hidden space-y-6">
+                <input type="email" id="register-email" placeholder="Seu e-mail" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                <input type="password" id="register-password" placeholder="Crie uma senha" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors duration-300">Criar Conta</button>
+            </form>
+            <div class="text-center mt-6">
+                <a href="#" id="toggle-auth" class="text-indigo-600 hover:underline">Não tem uma conta? Registre-se</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Banner de Notificação -->
+    <div id="notification" class="hidden fixed top-0 left-0 right-0 p-4 text-center z-50 text-white transition-transform duration-300">
+        <span id="notification-message"></span>
+    </div>
+
+    <!-- Conteúdo da Aplicação -->
+    <div id="app" class="hidden container mx-auto p-4 md:p-8 max-w-4xl pt-10">
+        <header class="text-center mb-10 relative">
+            <h1 class="text-4xl font-bold text-gray-900">Minha Reserva de Dinheiro</h1>
+            <p class="text-lg text-gray-600 mt-2">Acompanhe seu progresso para a meta de <span class="font-bold text-teal-600">R$ 10.000,00</span>.</p>
+            <div class="absolute top-0 right-0 flex gap-2">
+                <a href="index.html" class="bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition-colors duration-300">Painel Principal</a>
+                <button id="logout-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-300">Sair</button>
+            </div>
+        </header>
+
+        <main class="space-y-8">
+            <!-- Seção de Progresso -->
+            <section class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Seu Progresso</h2>
+                <div class="mb-2">
+                    <div class="flex justify-between items-center mb-1">
+                        <span id="total-reserva" class="text-xl font-bold text-teal-600">R$ 0,00</span>
+                        <span id="progresso-porcentagem" class="text-lg font-semibold text-gray-600">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4">
+                        <div id="progress-bar" class="bg-teal-500 h-4 rounded-full progress-bar-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Seção para Adicionar Valor -->
+            <section class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Adicionar à Reserva</h2>
+                <form id="form-reserva" class="space-y-4">
+                    <input type="text" id="reserva-descricao" placeholder="Descrição (ex: Economia do mês)" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" required>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="date" id="reserva-date" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" required>
+                        <input type="number" id="reserva-amount" placeholder="Valor (R$)" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" required>
+                    </div>
+                    <button type="submit" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-colors duration-300">Guardar Dinheiro</button>
+                </form>
+            </section>
+
+            <!-- Histórico de Lançamentos -->
+            <section class="bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-700 border-b-2 border-gray-200 pb-2 mb-4">Histórico</h2>
+                <div id="lista-reserva" class="space-y-3">
+                    <!-- Itens do histórico serão inseridos aqui -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Cole a mesma configuração do seu arquivo index.html aqui
+        const firebaseConfig = {
+          apiKey: "AIzaSyBRK-L-hUzj2s-6Wk2qZFFvbD7S-xTreqU",
+          authDomain: "meu-controle-financeiro-59353.firebaseapp.com",
+          projectId: "meu-controle-financeiro-59353",
+          storageBucket: "meu-controle-financeiro-59353.firebasestorage.app",
+          messagingSenderId: "913034950192",
+          appId: "1:913034950192:web:5726544c6d08b7d714dff5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        let userId, savingsCollection;
+        const META_RESERVA = 10000;
+
+        const dom = {
+            authScreen: document.getElementById('auth-screen'),
+            appScreen: document.getElementById('app'),
+            loginForm: document.getElementById('login-form'),
+            registerForm: document.getElementById('register-form'),
+            toggleAuthLink: document.getElementById('toggle-auth'),
+            authTitle: document.getElementById('auth-title'),
+            logoutBtn: document.getElementById('logout-btn'),
+            notification: document.getElementById('notification'),
+            notificationMessage: document.getElementById('notification-message'),
+            formReserva: document.getElementById('form-reserva'),
+            listaReserva: document.getElementById('lista-reserva'),
+            totalReservaEl: document.getElementById('total-reserva'),
+            progressoPorcentagemEl: document.getElementById('progresso-porcentagem'),
+            progressBar: document.getElementById('progress-bar'),
+        };
+
+        const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        const formatDate = (dateString) => new Date(dateString + 'T00:00:00').toLocaleDateString('pt-BR');
+
+        function showNotification(message, isError = true) {
+            dom.notificationMessage.textContent = message;
+            dom.notification.classList.remove('hidden');
+            dom.notification.classList.toggle('bg-red-600', isError);
+            dom.notification.classList.toggle('bg-green-600', !isError);
+            setTimeout(() => { dom.notification.classList.add('hidden'); }, 5000);
+        }
+
+        // --- LÓGICA DE AUTENTICAÇÃO (copiada do index.html) ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                dom.authScreen.classList.add('hidden');
+                dom.appScreen.classList.remove('hidden');
+                setupSavingsListener(userId);
+            } else {
+                dom.appScreen.classList.add('hidden');
+                dom.authScreen.classList.remove('hidden');
+                userId = null;
+            }
+        });
+        
+        dom.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = dom.loginForm.querySelector('#login-email').value;
+            const password = dom.loginForm.querySelector('#login-password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                showNotification("Credenciais inválidas. Verifique seu e-mail e senha.");
+            }
+        });
+
+        dom.registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = dom.registerForm.querySelector('#register-email').value;
+            const password = dom.registerForm.querySelector('#register-password').value;
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                showNotification("Erro ao criar conta: " + error.message);
+            }
+        });
+
+        dom.logoutBtn.addEventListener('click', async () => { await signOut(auth); });
+
+        dom.toggleAuthLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isLogin = !dom.loginForm.classList.contains('hidden');
+            dom.loginForm.classList.toggle('hidden', !isLogin);
+            dom.registerForm.classList.toggle('hidden', isLogin);
+            dom.authTitle.textContent = isLogin ? "Crie sua Conta" : "Bem-vindo!";
+            dom.toggleAuthLink.textContent = isLogin ? "Já tem uma conta? Faça login" : "Não tem uma conta? Registre-se";
+        });
+        // --- FIM DA LÓGICA DE AUTENTICAÇÃO ---
+
+        // Configura o listener para a coleção de reserva
+        function setupSavingsListener(uid) {
+            savingsCollection = collection(db, `financeiro/${uid}/savings`);
+            onSnapshot(savingsCollection, (snapshot) => {
+                const savings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateSavingsUI(savings);
+            });
+        }
+
+        // Atualiza a interface com os dados da reserva
+        function updateSavingsUI(savings) {
+            dom.listaReserva.innerHTML = '';
+            if (savings.length === 0) {
+                dom.listaReserva.innerHTML = `<p class="text-center text-gray-500">Nenhum valor guardado ainda.</p>`;
+            }
+
+            const totalGuardado = savings.reduce((sum, item) => sum + item.amount, 0);
+            
+            savings
+                .sort((a, b) => new Date(b.date) - new Date(a.date)) // Ordena por data mais recente
+                .forEach(item => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'p-3 border rounded-lg flex items-center justify-between bg-gray-50';
+                    itemEl.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${item.description}</p>
+                            <p class="text-sm text-gray-500">Em: ${formatDate(item.date)}</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                           <span class="font-bold text-lg text-green-600">${formatCurrency(item.amount)}</span>
+                           <button data-id="${item.id}" class="delete-btn text-gray-400 hover:text-red-500 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                           </button>
+                        </div>
+                    `;
+                    dom.listaReserva.appendChild(itemEl);
+            });
+
+            const porcentagem = (totalGuardado / META_RESERVA) * 100;
+            
+            dom.totalReservaEl.textContent = formatCurrency(totalGuardado);
+            dom.progressoPorcentagemEl.textContent = `${porcentagem.toFixed(2)}%`;
+            dom.progressBar.style.width = `${Math.min(porcentagem, 100)}%`;
+        }
+
+        // Evento para adicionar valor à reserva
+        dom.formReserva.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!userId) return showNotification("Você precisa estar logado para adicionar itens.");
+            
+            const description = dom.formReserva.querySelector('#reserva-descricao').value;
+            const date = dom.formReserva.querySelector('#reserva-date').value;
+            const amount = parseFloat(dom.formReserva.querySelector('#reserva-amount').value);
+
+            try {
+                await addDoc(savingsCollection, {
+                    description,
+                    date,
+                    amount,
+                    createdAt: new Date()
+                });
+                e.target.reset();
+                showNotification("Valor adicionado à sua reserva!", false);
+            } catch (error) {
+                showNotification("Erro ao salvar os dados.");
+                console.error("Erro:", error);
+            }
+        });
+
+        // Evento para deletar um item do histórico
+        dom.listaReserva.addEventListener('click', async (e) => {
+            const deleteBtn = e.target.closest('.delete-btn');
+            if (deleteBtn) {
+                const id = deleteBtn.dataset.id;
+                if (confirm('Tem certeza que deseja remover este item da sua reserva?')) {
+                    try {
+                        await deleteDoc(doc(savingsCollection, id));
+                        showNotification("Item removido com sucesso!", false);
+                    } catch (error) {
+                        showNotification("Erro ao remover o item.");
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
